@@ -11,10 +11,5 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ],
-  "env": {
-    "AZURE_CONNECTION_STRING": "@azure_connection_string",
-    "CONTAINER_NAME": "@container_name",
-    "GOOGLE_DRIVE_FOLDER_ID": "@google_drive_folder_id"
-  }
+  ]
 }
