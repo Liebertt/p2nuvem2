@@ -98,6 +98,99 @@ app.get("/api/destino", async (req, res) => {
   }
 });
 
+app.get("/api/diagnostico", (req, res) => {
+  try {
+    const envVal = process.env.GOOGLE_CREDENTIALS_JSON;
+    if (!envVal) {
+      return res.json({
+        erro: "Variável GOOGLE_CREDENTIALS_JSON não está definida no ambiente da Vercel!",
+        diagnostico: "Vá nas configurações da Vercel e adicione a variável GOOGLE_CREDENTIALS_JSON."
+      });
+    }
+
+    const trimmed = envVal.trim();
+    const isJson = trimmed.startsWith("{");
+    let decoded = "";
+    let base64Error = null;
+
+    if (!isJson) {
+      try {
+        decoded = Buffer.from(trimmed, "base64").toString("utf-8").trim();
+      } catch (e) {
+        base64Error = e.message;
+      }
+    } else {
+      decoded = trimmed;
+    }
+
+    let parsed = null;
+    let jsonError = null;
+    let privateKeyStatus = {};
+
+    try {
+      parsed = JSON.parse(decoded);
+    } catch (e) {
+      // Tentar a nossa limpeza caso falhe
+      try {
+        const cleaned = decoded.replace(/"private_key":\s*"([^"]*)"/gs, (match, p1) => {
+          return '"private_key": ' + JSON.stringify(p1.replace(/\r?\n/g, '\n'));
+        });
+        parsed = JSON.parse(cleaned);
+        privateKeyStatus.limpezaAplicada = true;
+      } catch (innerError) {
+        jsonError = e.message;
+      }
+    }
+
+    if (parsed) {
+      privateKeyStatus.hasType = !!parsed.type;
+      privateKeyStatus.hasClientEmail = !!parsed.client_email;
+      privateKeyStatus.hasPrivateKey = !!parsed.private_key;
+      
+      if (parsed.private_key) {
+        privateKeyStatus.originalKeyLength = parsed.private_key.length;
+        privateKeyStatus.keyStartsWith = parsed.private_key.substring(0, 40) + "...";
+        privateKeyStatus.keyEndsWith = "..." + parsed.private_key.substring(parsed.private_key.length - 40);
+        
+        // Simular o cleanPrivateKey
+        const cleanKey = parsed.private_key
+          .replace(/\r/g, "")
+          .replace(/\\+n/g, "\n")
+          .replace(/\\+r/g, "")
+          .trim();
+          
+        privateKeyStatus.cleanedKeyLength = cleanKey.length;
+        privateKeyStatus.cleanedKeyStartsWith = cleanKey.substring(0, 40) + "...";
+        privateKeyStatus.cleanedKeyEndsWith = "..." + cleanKey.substring(cleanKey.length - 40);
+        
+        // Testar com o módulo crypto
+        try {
+          const crypto = require("crypto");
+          crypto.createPrivateKey(cleanKey);
+          privateKeyStatus.cryptoValido = true;
+        } catch (cryptoErr) {
+          privateKeyStatus.cryptoValido = false;
+          privateKeyStatus.cryptoErro = cryptoErr.message;
+        }
+      }
+    }
+
+    res.json({
+      codigoVersao: "v5-diagnosticos-completos",
+      tamanhoVariavelEnv: envVal.length,
+      comecoVariavelEnv: envVal.substring(0, 20) + "...",
+      fimVariavelEnv: "..." + envVal.substring(envVal.length - 20),
+      eJsonBruto: isJson,
+      base64Error,
+      jsonError,
+      statusChavePrivada: privateKeyStatus,
+      credentialsJsonPronto: parsed ? "Sucesso!" : "Falhou!"
+    });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
 // 4. PROCESSO DE MIGRAÇÃO COM STATUS NO CONSOLE
 app.post("/api/migrar", async (req, res) => {
   try {
