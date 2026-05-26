@@ -3,6 +3,7 @@ const { google } = require("googleapis");
 const { BlobServiceClient } = require("@azure/storage-blob");
 const path = require("path");
 require("dotenv").config();
+const { getGoogleCredentials } = require("./lib/credentials");
 
 const app = express();
 app.use(express.static("public")); // Para servir a interface gráfica estática
@@ -22,9 +23,10 @@ const containerClient = blobServiceClient.getContainerClient(
   process.env.CONTAINER_NAME,
 );
 
-// Configuração do Google Drive usando Service Account
+// Configuração do Google Drive usando Service Account (credenciais como objeto)
+const googleCredentials = getGoogleCredentials();
 const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, "google-credentials.json"),
+  credentials: googleCredentials,
   scopes: ["https://www.googleapis.com/auth/drive.readonly"],
 });
 const drive = google.drive({ version: "v3", auth });
