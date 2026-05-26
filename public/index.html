@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Painel de Migração de Arquivos</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 30px;
+        background-color: #f4f6f9;
+      }
+      .container {
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
+      }
+      .panel {
+        flex: 1;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        color: #333;
+        border-bottom: 2px solid #ddd;
+        padding-bottom: 10px;
+      }
+      button {
+        background-color: #0078d4;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #005a9e;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+      }
+      li {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+        font-size: 14px;
+      }
+      .log-panel {
+        margin-top: 20px;
+        background: #222;
+        color: #7f7;
+        padding: 15px;
+        border-radius: 5px;
+        font-family: monospace;
+        height: 150px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Migrador de Arquivos: Google Drive ➔ Azure Blob Storage</h1>
+    <button onclick="iniciarMigracao()">Iniciar Migração de Arquivos</button>
+
+    <div class="container">
+      <div class="panel">
+        <h2>Origem: Google Drive</h2>
+        <ul id="lista-origem">
+          Carregando arquivos...
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>Destino: Azure Blob Storage (aluno_lieberte)</h2>
+        <ul id="lista-destino">
+          Carregando contêiner...
+        </ul>
+      </div>
+    </div>
+
+    <h3>Console de Transferência em Tempo Real</h3>
+    <div class="log-panel" id="console-log">Aguardando comando...</div>
+
+    <script>
+      async function carregarDados() {
+        try {
+          // Buscar dados da origem
+          const resOrigem = await fetch("/api/origem");
+          const dataOrigem = await resOrigem.json();
+
+          if (!resOrigem.ok || dataOrigem.error) {
+            document.getElementById("lista-origem").innerHTML =
+              `<li style="color: red;">Erro: ${dataOrigem.error || "Falha ao carregar"}</li>`;
+          } else if (Array.isArray(dataOrigem)) {
+            document.getElementById("lista-origem").innerHTML =
+              dataOrigem
+                .map(
+                  (f) =>
+                    `<li>📄 ${f.name} (${(f.size / 1024).toFixed(1)} KB)</li>`,
+                )
+                .join("") || "<li>Nenhum arquivo encontrado na pasta.</li>";
+          }
+
+          // Buscar dados do destino
+          const resDestino = await fetch("/api/destino");
+          const dataDestino = await resDestino.json();
+
+          if (!resDestino.ok || dataDestino.error) {
+            document.getElementById("lista-destino").innerHTML =
+              `<li style="color: red;">Erro: ${dataDestino.error || "Falha ao carregar"}</li>`;
+          } else if (Array.isArray(dataDestino)) {
+            document.getElementById("lista-destino").innerHTML =
+              dataDestino
+                .map(
+                  (b) =>
+                    `<li>📦 ${b.name} (${(b.size / 1024).toFixed(1)} KB)</li>`,
+                )
+                .join("") || "<li>Contêiner vazio.</li>";
+          }
+        } catch (err) {
+          const consoleDiv = document.getElementById("console-log");
+          consoleDiv.innerHTML += `\n[ERRO]: ${err.message}`;
+          console.error("Erro ao carregar listas:", err);
+        }
+      }
+
+      async function iniciarMigracao() {
+        const consoleDiv = document.getElementById("console-log");
+        consoleDiv.innerHTML =
+          "[INFO] Iniciando varredura e cópia de arquivos...\n";
+
+        try {
+          const response = await fetch("/api/migrar", { method: "POST" });
+          const dados = await response.json();
+
+          if (!response.ok || dados.error) {
+            consoleDiv.innerHTML += `[ERRO SISTÊMICO]: ${dados.error || "Falha na migração"}`;
+          } else if (Array.isArray(dados.logs)) {
+            consoleDiv.innerHTML = dados.logs
+              .map((log) => {
+                const cor = log.status.includes("Sucesso") ? "#7f7" : "#f77";
+                return `<span style="color: ${cor}">${log.status === "Sucesso" ? "✔" : "✖"} ${log.file} -> ${log.status}</span><br>`;
+              })
+              .join("");
+
+            // Atualiza os painéis após a migração acabar
+            carregarDados();
+          }
+        } catch (err) {
+          consoleDiv.innerHTML += `\n[ERRO SISTÊMICO]: ${err.message}`;
+        }
+      }
+
+      // Executa ao abrir a página
+      carregarDados();
+    </script>
+  </body>
+</html>
