@@ -21,6 +21,7 @@ Aplicação Node.js que migra arquivos do Google Drive para Azure Blob Storage c
      - `AZURE_CONNECTION_STRING`: Sua connection string do Azure Blob Storage
      - `CONTAINER_NAME`: Nome do container (ex: `aluno-lieberte`)
      - `GOOGLE_DRIVE_FOLDER_ID`: ID da pasta no Google Drive
+     - `GOOGLE_CREDENTIALS_JSON`: Inserir as credenciais Google
 
 3. **Deploy:**
    - Clique em "Deploy"
